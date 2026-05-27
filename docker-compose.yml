@@ -1,0 +1,66 @@
+services:
+
+  redis-server:
+    image: redis:latest
+    container_name: redis-server
+    networks:
+      - session-net
+
+  app-1:
+    build: .
+    container_name: app-1
+    hostname: app-1
+    environment:
+      - SERVER_PORT=8080
+    depends_on:
+      - redis-server
+    networks:
+      - session-net
+
+  app-2:
+    build: .
+    container_name: app-2
+    hostname: app-2
+    environment:
+      - SERVER_PORT=8080
+    depends_on:
+      - redis-server
+    networks:
+      - session-net
+
+  nginx:
+    image: nginx:latest
+    container_name: nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - app-1
+      - app-2
+    networks:
+      - session-net
+
+  jenkins:
+    image: jenkins/jenkins:lts-jdk21
+    container_name: jenkins
+    user: root
+    environment:
+      - JENKINS_OPTS=--prefix=/jenkins
+    ports:
+      - "9090:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock   # 호스트 Docker 데몬 공유
+      - /usr/bin/docker:/usr/bin/docker              # Docker CLI 공유
+      - /usr/libexec/docker:/usr/libexec/docker      # docker compose 플러그인 공유
+    networks:
+      - session-net
+
+networks:
+  session-net:
+    driver: bridge
+
+volumes:
+  jenkins_home:
